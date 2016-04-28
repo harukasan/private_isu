@@ -3,6 +3,7 @@ require 'mysql2'
 require 'rack-flash'
 require 'shellwords'
 require 'openssl'
+require 'fileutils'
 
 UPLOAD_PATH = "/tmp/upload/image/"
 FileUtils.mkdir_p(UPLOAD_PATH) unless FileTest.exist?(UPLOAD_PATH)
