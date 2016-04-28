@@ -1,6 +1,7 @@
+<% account_name = escape_html(post[:user][:account_name]) %>
 <div class="isu-post" id="pid_<%= post[:id] %>" data-created-at="<%= post[:created_at].iso8601 %>">
   <div class="isu-post-header">
-    <a href="/@<%= escape_html(CGI.escape(post[:user][:account_name])) %>" class="isu-post-account-name"><%= escape_html(post[:user][:account_name]) %></a>
+    <a href="/@<%= escape_html(CGI.escape(post[:user][:account_name])) %>" class="isu-post-account-name"><%= account_name %></a>
     <a href="/posts/<%= post[:id] %>" class="isu-post-permalink">
       <time class="timeago" datetime="<%= post[:created_at].iso8601 %>"></time>
     </a>
@@ -9,7 +10,7 @@
     <img src="<%= escape_html(image_url(post)) %>" class="isu-image">
   </div>
   <div class="isu-post-text">
-    <a href="/@<%= escape_html(CGI.escape(post[:user][:account_name])) %>" class="isu-post-account-name"><%= escape_html(post[:user][:account_name]) %></a>
+    <a href="/@<%= escape_html(CGI.escape(post[:user][:account_name])) %>" class="isu-post-account-name"><%= account_name %></a>
     <%= escape_html(post[:body]).gsub(/\r?\n/, '<br>') %>
   </div>
   <div class="isu-post-comment">
