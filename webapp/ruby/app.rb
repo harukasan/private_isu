@@ -92,16 +92,6 @@ module Isuconp
         digest "#{password}:#{calculate_salt(account_name)}"
       end
 
-      def get_session_user()
-        if session[:user]
-          db.prepare('SELECT * FROM `users` WHERE `id` = ?').execute(
-            session[:user][:id]
-          ).first
-        else
-          nil
-        end
-      end
-
       def make_posts(results, all_comments: false)
         posts = []
         results.to_a.each do |post|
@@ -150,21 +140,23 @@ module Isuconp
     end
 
     get '/login' do
-      if get_session_user()
+      unless session[:user].nil?
         redirect '/', 302
       end
       erb :login, layout: :layout, locals: { me: nil }
     end
 
     post '/login' do
-      if get_session_user()
+      unless session[:user].nil?
         redirect '/', 302
       end
 
       user = try_login(params['account_name'], params['password'])
       if user
         session[:user] = {
-          id: user[:id]
+          id: user[:id],
+          account_name: user[:account_name],
+          authority: user[:authority],
         }
         session[:csrf_token] = SecureRandom.hex(16)
         redirect '/', 302
@@ -175,14 +167,14 @@ module Isuconp
     end
 
     get '/register' do
-      if get_session_user()
+      unless session[:user].nil?
         redirect '/', 302
       end
       erb :register, layout: :layout, locals: { me: nil }
     end
 
     post '/register' do
-      if get_session_user()
+      unless session[:user].nil?
         redirect '/', 302
       end
 
@@ -210,7 +202,9 @@ module Isuconp
       )
 
       session[:user] = {
-        id: db.last_id
+        id: db.last_id,
+        account_name: account_name,
+        authority: 0,
       }
       session[:csrf_token] = SecureRandom.hex(16)
       redirect '/', 302
@@ -222,7 +216,7 @@ module Isuconp
     end
 
     get '/' do
-      me = get_session_user()
+      me = session[:user]
 
       results = db.query('SELECT `id`, `user_id`, `body`, `created_at`, `mime` FROM `posts` ORDER BY `created_at` DESC')
       posts = make_posts(results)
@@ -261,7 +255,7 @@ module Isuconp
         ).first[:count]
       end
 
-      me = get_session_user()
+      me = session[:user]
 
       erb :user, layout: :layout, locals: { posts: posts, user: user, post_count: post_count, comment_count: comment_count, commented_count: commented_count, me: me }
     end
@@ -286,13 +280,13 @@ module Isuconp
 
       post = posts[0]
 
-      me = get_session_user()
+      me = session[:user]
 
       erb :post, layout: :layout, locals: { post: post, me: me }
     end
 
     post '/' do
-      me = get_session_user()
+      me = session[:user]
 
       if me.nil?
         redirect '/login', 302
@@ -356,7 +350,7 @@ module Isuconp
     end
 
     post '/comment' do
-      me = get_session_user()
+      me = session[:user]
 
       if me.nil?
         redirect '/login', 302
@@ -382,7 +376,7 @@ module Isuconp
     end
 
     get '/admin/banned' do
-      me = get_session_user()
+      me = session[:user]
 
       if me.nil?
         redirect '/login', 302
@@ -398,7 +392,7 @@ module Isuconp
     end
 
     post '/admin/banned' do
-      me = get_session_user()
+      me = session[:user]
 
       if me.nil?
         redirect '/', 302
