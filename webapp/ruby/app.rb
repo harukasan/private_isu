@@ -53,6 +53,9 @@ module Isuconp
         sql.each do |s|
           db.prepare(s).execute
         end
+
+        user_ids = db.query('SELECT id FROM users WHERE del_flg = 1').to_a.map { |user| user[:id] }
+        db.prepare('DELETE FROM posts WHERE `user_id` IN (?)').execute(user_ids.join(','))
       end
 
       def try_login(account_name, password)
@@ -414,6 +417,9 @@ module Isuconp
       params['uid'].each do |id|
         db.prepare(query).execute(1, id.to_i)
       end
+
+      query = 'DELETE FROM `posts` WHERE `user_id` = ?'
+      db.prepare(query).execute(id.to_i)
 
       redirect '/admin/banned', 302
     end
