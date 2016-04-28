@@ -3,6 +3,7 @@ require 'mysql2'
 require 'rack-flash'
 require 'shellwords'
 require 'openssl'
+require 'dalli'
 
 module Isuconp
   class App < Sinatra::Base
@@ -13,6 +14,7 @@ module Isuconp
     UPLOAD_LIMIT = 10 * 1024 * 1024 # 10mb
 
     POSTS_PER_PAGE = 20
+    CACHE_INDEX_POSTS = 'index_posts'
 
     helpers do
       def config
@@ -25,6 +27,10 @@ module Isuconp
             database: ENV['ISUCONP_DB_NAME'] || 'isuconp',
           },
         }
+      end
+
+      def cache
+        @cache ||= Dalli::Client.new 'localhost:11211'
       end
 
       def db
@@ -218,7 +224,12 @@ module Isuconp
       me = session[:user]
 
       results = db.prepare('SELECT `id`, `user_id`, `body`, `created_at`, `mime` FROM `posts` ORDER BY `created_at` DESC LIMIT ?').execute(POSTS_PER_PAGE)
-      posts = make_posts(results)
+
+      posts = cache.get CACHE_INDEX_POSTS
+      unless posts
+        posts = make_posts(results)
+        cache.set CACHE_INDEX_POSTS, posts
+      end
 
       erb :index, layout: :layout, locals: { posts: posts, me: me }
     end
@@ -327,6 +338,8 @@ module Isuconp
         )
         pid = db.last_id
 
+        cache.delete CACHE_INDEX_POSTS
+
         redirect "/posts/#{pid}", 302
       else
         flash[:notice] = '画像が必須です'
@@ -374,6 +387,8 @@ module Isuconp
         params['comment']
       )
 
+      cache.delete CACHE_INDEX_POSTS
+
       redirect "/posts/#{post_id}", 302
     end
 
@@ -416,6 +431,8 @@ module Isuconp
 
       query = 'DELETE FROM `posts` WHERE `user_id` = ?'
       db.prepare(query).execute(id.to_i)
+
+      cache.delete CACHE_INDEX_POSTS
 
       redirect '/admin/banned', 302
     end
