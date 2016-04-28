@@ -3,7 +3,11 @@ require 'mysql2'
 require 'rack-flash'
 require 'shellwords'
 require 'openssl'
+require 'fileutils'
 require 'dalli'
+
+UPLOAD_PATH = "/tmp/upload/image/"
+FileUtils.mkdir_p(UPLOAD_PATH) unless FileTest.exist?(UPLOAD_PATH)
 
 module Isuconp
   class App < Sinatra::Base
@@ -101,17 +105,22 @@ module Isuconp
       def make_posts(results, all_comments: false)
         posts = []
         results.to_a.each do |post|
-          post[:comment_count] = db.prepare('SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?').execute(
-            post[:id]
-          ).first[:count]
-
           query = 'SELECT account_name, comment FROM `comments` AS c, `users` AS u WHERE `post_id` = ? AND u.`id` = `user_id` ORDER BY c.`created_at` DESC'
           unless all_comments
             query += ' LIMIT 3'
+
           end
           comments = db.prepare(query).execute(
             post[:id]
           ).to_a
+
+          if all_comments
+            post[:comment_count] = comments.size
+          else
+            post[:comment_count] = db.prepare('SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?').execute(
+              post[:id]
+            ).first[:count]
+          end
 
           post[:comments] = comments.reverse
 
@@ -329,14 +338,25 @@ module Isuconp
         end
 
         params['file'][:tempfile].rewind
+        upload_file = params["file"][:tempfile].read
         query = 'INSERT INTO `posts` (`user_id`, `mime`, `imgdata`, `body`) VALUES (?,?,?,?)'
         db.prepare(query).execute(
           me[:id],
           mime,
-          params["file"][:tempfile].read,
+          upload_file,
           params["body"],
         )
         pid = db.last_id
+
+        ext = case mime
+        when "image/jpeg" then "jpg"
+        when "image/png" then "png"
+        when "image/gif" then "gif"
+        end
+
+        File.open("#{UPLOAD_PATH}#{pid}.#{ext}" , "w") do |f|
+          f.write(upload_file)
+        end
 
         cache.delete CACHE_INDEX_POSTS
 
