@@ -289,10 +289,7 @@ module Isuconp
     end
 
     get '/posts/:id' do
-      results = db.prepare('SELECT * FROM `posts` WHERE `id` = ? LIMIT ?').execute(
-        params[:id],
-        POSTS_PER_PAGE
-      )
+      results = db.prepare('SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` WHERE `id` = ?').execute(params[:id])
       posts = make_posts(results, all_comments: true)
 
       return 404 if posts.length == 0
