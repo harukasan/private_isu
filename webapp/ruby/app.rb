@@ -125,8 +125,7 @@ module Isuconp
             post[:user_id]
           ).first
 
-          posts.push(post) if post[:user][:del_flg] == 0
-          break if posts.length >= POSTS_PER_PAGE
+          posts.push(post)
         end
 
         posts
@@ -226,7 +225,7 @@ module Isuconp
     get '/' do
       me = get_session_user()
 
-      results = db.query('SELECT `id`, `user_id`, `body`, `created_at`, `mime` FROM `posts` ORDER BY `created_at` DESC')
+      results = db.prepare('SELECT `id`, `user_id`, `body`, `created_at`, `mime` FROM `posts` ORDER BY `created_at` DESC LIMIT ?').execute(POSTS_PER_PAGE)
       posts = make_posts(results)
 
       erb :index, layout: :layout, locals: { posts: posts, me: me }
@@ -241,8 +240,9 @@ module Isuconp
         return 404
       end
 
-      results = db.prepare('SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` WHERE `user_id` = ? ORDER BY `created_at` DESC').execute(
-        user[:id]
+      results = db.prepare('SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` WHERE `user_id` = ? ORDER BY `created_at` DESC LIMIT ?').execute(
+        user[:id],
+        POSTS_PER_PAGE
       )
       posts = make_posts(results)
 
@@ -270,8 +270,9 @@ module Isuconp
 
     get '/posts' do
       max_created_at = params['max_created_at']
-      results = db.prepare('SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` WHERE `created_at` <= ? ORDER BY `created_at` DESC').execute(
-        max_created_at.nil? ? nil : Time.iso8601(max_created_at).localtime
+      results = db.prepare('SELECT `id`, `user_id`, `body`, `mime`, `created_at` FROM `posts` WHERE `created_at` <= ? ORDER BY `created_at` DESC LIMIT ?').execute(
+        max_created_at.nil? ? nil : Time.iso8601(max_created_at).localtime,
+        POSTS_PER_PAGE
       )
       posts = make_posts(results)
 
@@ -279,8 +280,9 @@ module Isuconp
     end
 
     get '/posts/:id' do
-      results = db.prepare('SELECT * FROM `posts` WHERE `id` = ?').execute(
-        params[:id]
+      results = db.prepare('SELECT * FROM `posts` WHERE `id` = ? LIMIT ?').execute(
+        params[:id],
+        POSTS_PER_PAGE
       )
       posts = make_posts(results, all_comments: true)
 
