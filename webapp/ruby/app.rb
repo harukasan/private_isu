@@ -4,6 +4,7 @@ require 'rack-flash'
 require 'shellwords'
 require 'openssl'
 require 'fileutils'
+require 'dalli'
 
 UPLOAD_PATH = "/tmp/upload/image/"
 FileUtils.mkdir_p(UPLOAD_PATH) unless FileTest.exist?(UPLOAD_PATH)
@@ -17,6 +18,7 @@ module Isuconp
     UPLOAD_LIMIT = 10 * 1024 * 1024 # 10mb
 
     POSTS_PER_PAGE = 20
+    CACHE_INDEX_POSTS = 'index_posts'
 
     helpers do
       def config
@@ -29,6 +31,10 @@ module Isuconp
             database: ENV['ISUCONP_DB_NAME'] || 'isuconp',
           },
         }
+      end
+
+      def cache
+        @cache ||= Dalli::Client.new '127.0.0.1:11211'
       end
 
       def db
@@ -226,8 +232,10 @@ module Isuconp
     get '/' do
       me = session[:user]
 
-      results = db.prepare('SELECT `id`, `user_id`, `body`, `created_at`, `mime` FROM `posts` ORDER BY `created_at` DESC LIMIT ?').execute(POSTS_PER_PAGE)
-      posts = make_posts(results)
+      posts = cache.fetch CACHE_INDEX_POSTS do
+        results = db.prepare('SELECT `id`, `user_id`, `body`, `created_at`, `mime` FROM `posts` ORDER BY `created_at` DESC LIMIT ?').execute(POSTS_PER_PAGE)
+        make_posts(results)
+      end
 
       erb :index, layout: :layout, locals: { posts: posts, me: me }
     end
@@ -347,6 +355,8 @@ module Isuconp
           f.write(upload_file)
         end
 
+        cache.delete CACHE_INDEX_POSTS
+
         redirect "/posts/#{pid}", 302
       else
         flash[:notice] = '画像が必須です'
@@ -394,6 +404,8 @@ module Isuconp
         params['comment']
       )
 
+      cache.delete CACHE_INDEX_POSTS
+
       redirect "/posts/#{post_id}", 302
     end
 
@@ -436,6 +448,8 @@ module Isuconp
 
       query = 'DELETE FROM `posts` WHERE `user_id` = ?'
       db.prepare(query).execute(id.to_i)
+
+      cache.delete CACHE_INDEX_POSTS
 
       redirect '/admin/banned', 302
     end
