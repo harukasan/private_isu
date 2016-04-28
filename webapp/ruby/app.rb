@@ -2,6 +2,7 @@ require 'sinatra/base'
 require 'mysql2'
 require 'rack-flash'
 require 'shellwords'
+require 'openssl'
 
 module Isuconp
   class App < Sinatra::Base
@@ -76,7 +77,8 @@ module Isuconp
 
       def digest(src)
         # opensslのバージョンによっては (stdin)= というのがつくので取る
-        `printf "%s" #{Shellwords.shellescape(src)} | openssl dgst -sha512 | sed 's/^.*= //'`.strip
+        #`printf "%s" #{Shellwords.shellescape(src)} | openssl dgst -sha512 | sed 's/^.*= //'`.strip
+        OpenSSL::Digest::SHA512.hexdigest(src)
       end
 
       def calculate_salt(account_name)
