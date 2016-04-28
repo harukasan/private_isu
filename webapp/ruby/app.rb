@@ -19,6 +19,7 @@ module Isuconp
 
     POSTS_PER_PAGE = 20
     CACHE_INDEX_POSTS = 'index_posts'
+    CACHE_POST_COMMENTS_COUNT = 'post_comment_count'
 
     helpers do
       def config
@@ -117,9 +118,11 @@ module Isuconp
           if all_comments
             post[:comment_count] = comments.size
           else
-            post[:comment_count] = db.prepare('SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?').execute(
-              post[:id]
-            ).first[:count]
+            post[:comment_count] = cache.fetch [CACHE_POST_COMMENTS_COUNT, post[:id]].join('_') do
+              db.prepare('SELECT COUNT(*) AS `count` FROM `comments` WHERE `post_id` = ?').execute(
+                post[:id]
+              ).first[:count]
+            end
           end
 
           post[:comments] = comments.reverse
@@ -402,6 +405,7 @@ module Isuconp
       )
 
       cache.delete CACHE_INDEX_POSTS
+      cache.delete [CACHE_POST_COMMENTS_COUNT, post_id].join('_')
 
       redirect "/posts/#{post_id}", 302
     end
