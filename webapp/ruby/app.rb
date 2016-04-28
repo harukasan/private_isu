@@ -332,7 +332,7 @@ module Isuconp
         db.prepare(query).execute(
           me[:id],
           mime,
-          upload_file,
+          "", # upload_file,
           params["body"],
         )
         pid = db.last_id
