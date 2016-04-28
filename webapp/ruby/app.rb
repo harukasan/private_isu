@@ -3,6 +3,10 @@ require 'mysql2'
 require 'rack-flash'
 require 'shellwords'
 require 'openssl'
+require 'fileutils'
+
+UPLOAD_PATH = "/tmp/upload/image/"
+FileUtils.mkdir_p(UPLOAD_PATH) unless FileTest.exist?(UPLOAD_PATH)
 
 module Isuconp
   class App < Sinatra::Base
@@ -318,14 +322,25 @@ module Isuconp
         end
 
         params['file'][:tempfile].rewind
+        upload_file = params["file"][:tempfile].read
         query = 'INSERT INTO `posts` (`user_id`, `mime`, `imgdata`, `body`) VALUES (?,?,?,?)'
         db.prepare(query).execute(
           me[:id],
           mime,
-          params["file"][:tempfile].read,
+          upload_file,
           params["body"],
         )
         pid = db.last_id
+
+        ext = case mime
+        when "image/jpeg" then "jpg"
+        when "image/png" then "png"
+        when "image/gif" then "gif"
+        end
+
+        File.open("#{UPLOAD_PATH}#{pid}.#{ext}" , "w") do |f|
+          f.write(upload_file)
+        end
 
         redirect "/posts/#{pid}", 302
       else
