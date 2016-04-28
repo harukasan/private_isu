@@ -2,6 +2,7 @@ require 'sinatra/base'
 require 'mysql2'
 require 'rack-flash'
 require 'shellwords'
+require 'openssl'
 
 module Isuconp
   class App < Sinatra::Base
