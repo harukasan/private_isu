@@ -234,10 +234,8 @@ module Isuconp
 
       results = db.prepare('SELECT `id`, `user_id`, `body`, `created_at`, `mime` FROM `posts` ORDER BY `created_at` DESC LIMIT ?').execute(POSTS_PER_PAGE)
 
-      posts = cache.get CACHE_INDEX_POSTS
-      unless posts
-        posts = make_posts(results)
-        cache.set CACHE_INDEX_POSTS, posts
+      posts = cache.fetch CACHE_INDEX_POSTS do
+        make_posts(results)
       end
 
       erb :index, layout: :layout, locals: { posts: posts, me: me }
