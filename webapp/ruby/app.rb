@@ -232,9 +232,8 @@ module Isuconp
     get '/' do
       me = session[:user]
 
-      results = db.prepare('SELECT `id`, `user_id`, `body`, `created_at`, `mime` FROM `posts` ORDER BY `created_at` DESC LIMIT ?').execute(POSTS_PER_PAGE)
-
       posts = cache.fetch CACHE_INDEX_POSTS do
+        results = db.prepare('SELECT `id`, `user_id`, `body`, `created_at`, `mime` FROM `posts` ORDER BY `created_at` DESC LIMIT ?').execute(POSTS_PER_PAGE)
         make_posts(results)
       end
 
